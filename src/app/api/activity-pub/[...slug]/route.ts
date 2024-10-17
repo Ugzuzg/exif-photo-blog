@@ -9,6 +9,7 @@ import {
   generateCryptoKeyPair,
   importJwk,
   MemoryKvStore,
+  Note,
   Person,
   Undo,
 } from '@fedify/fedify';
@@ -107,11 +108,11 @@ federation.setOutboxDispatcher(
     const items = photos.map(
       (photo) =>
         new Create({
-          id: new URL(`/posts/${photo.id}#activity`, ctx.url),
+          id: new URL(`/p/${photo.id}#activity`, ctx.url),
           actor: ctx.getActorUri(identifier),
-          object: new Article({
+          object: new Note({
             id: new URL(`/p/${photo.id}`, ctx.url),
-            summary: photo.title,
+            summary: photo.title ?? 'Untitled',
             image: new URL(photo.url),
           }),
         }),
