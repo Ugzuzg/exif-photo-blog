@@ -1,6 +1,6 @@
-import { auth } from "./auth";
-import { NextRequest, NextResponse } from "next/server";
-import type { NextApiRequest, NextApiResponse } from "next";
+import { auth } from './auth';
+import { NextRequest, NextResponse } from 'next/server';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   PATH_ADMIN,
   PATH_ADMIN_PHOTOS,
@@ -8,7 +8,7 @@ import {
   PATH_OG_SAMPLE,
   PREFIX_PHOTO,
   PREFIX_TAG,
-} from "./site/paths";
+} from './site/paths';
 
 export default async function middleware(req: NextRequest, res: NextResponse) {
   const { pathname, search } = req.nextUrl;
@@ -30,8 +30,8 @@ export default async function middleware(req: NextRequest, res: NextResponse) {
       new URL(`${PREFIX_TAG}/${matches?.[1]}`, req.url),
     );
   } else if (
-    pathname.startsWith("/.well-known") ||
-    pathname.startsWith("/users")
+    pathname.startsWith('/.well-known') ||
+    pathname.startsWith('/users')
   ) {
     return NextResponse.rewrite(
       new URL(`/api/activity-pub${pathname}${search}`, req.url),
@@ -54,8 +54,8 @@ export const config = {
   // - / (root)
   // eslint-disable-next-line max-len
   matcher: [
-    "/((?!api$|api/auth|_next/static|_next/image|favicon.ico$|favicons/|grid$|$).*)",
-    "/.well-known/(.*)",
-    "/users/(.*)",
+    '/((?!api$|api/auth|_next/static|_next/image|favicon.ico$|favicons/|grid$|$).*)',
+    '/.well-known/(.*)',
+    '/users/(.*)',
   ],
 };
