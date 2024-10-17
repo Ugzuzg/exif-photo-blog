@@ -11,7 +11,7 @@ import {
 } from "./site/paths";
 
 export default async function middleware(req: NextRequest, res: NextResponse) {
-  const pathname = req.nextUrl.pathname;
+  const { pathname, search } = req.nextUrl;
 
   if (pathname === PATH_ADMIN) {
     return NextResponse.redirect(new URL(PATH_ADMIN_PHOTOS, req.url));
@@ -33,9 +33,8 @@ export default async function middleware(req: NextRequest, res: NextResponse) {
     pathname.startsWith("/.well-known") ||
     pathname.startsWith("/users")
   ) {
-    console.log(pathname, req.url);
     return NextResponse.rewrite(
-      new URL(`/api/activity-pub${pathname}`, req.url),
+      new URL(`/api/activity-pub${pathname}${search}`, req.url),
     );
   }
 
