@@ -45,3 +45,8 @@ export async function GET(req: NextRequest) {
   console.log(req.url);
   return await federation.fetch(req, { contextData: null });
 }
+
+export async function POST(req: NextRequest) {
+  console.log(req.url);
+  return await federation.fetch(req, { contextData: null });
+}
