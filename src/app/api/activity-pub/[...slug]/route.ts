@@ -1,5 +1,8 @@
+import { getPhotos } from '@/photo/db/query';
 import {
   Accept,
+  Article,
+  Create,
   createFederation,
   exportJwk,
   Follow,
@@ -93,6 +96,29 @@ federation
     console.log(object);
     // await kv.delete(['followers', parsed.identifier]);
   });
+
+federation.setOutboxDispatcher(
+  '/users/{identifier}/outbox',
+  async (ctx, identifier) => {
+    // Work with the database to find the activities that the actor has sent
+    // (the following `getPostsByUserId` is a hypothetical function):
+    const photos = await getPhotos();
+    // Turn the posts into `Create` activities:
+    const items = photos.map(
+      (photo) =>
+        new Create({
+          id: new URL(`/posts/${photo.id}#activity`, ctx.url),
+          actor: ctx.getActorUri(identifier),
+          object: new Article({
+            id: new URL(`/p/${photo.id}`, ctx.url),
+            summary: photo.title,
+            image: new URL(photo.url),
+          }),
+        }),
+    );
+    return { items };
+  },
+);
 
 export async function GET(req: NextRequest) {
   console.log(req.url);
