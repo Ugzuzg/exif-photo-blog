@@ -1,4 +1,4 @@
-import { getPhotos } from '@/photo/db/query';
+import { getPhoto, getPhotos } from '@/photo/db/query';
 import {
   Accept,
   Article,
@@ -108,16 +108,35 @@ federation.setOutboxDispatcher(
     const items = photos.map(
       (photo) =>
         new Create({
-          id: new URL(`/p/${photo.id}#activity`, ctx.url),
+          id: ctx.getObjectUri(Note, { userId: identifier, noteId: photo.id }),
           actor: ctx.getActorUri(identifier),
           object: new Note({
-            id: new URL(`/p/${photo.id}`, ctx.url),
+            id: ctx.getObjectUri(Note, {
+              userId: identifier,
+              noteId: photo.id,
+            }),
             summary: photo.title ?? 'Untitled',
             image: new URL(photo.url),
           }),
         }),
     );
     return { items };
+  },
+);
+
+federation.setObjectDispatcher(
+  Note,
+  '/users/{userId}/notes/{noteId}',
+  async (ctx, { userId, noteId }) => {
+    const photo = await getPhoto(noteId);
+    if (photo == null) return null;
+
+    return new Note({
+      id: ctx.getObjectUri(Note, { userId, noteId }),
+      content: 'abcde',
+      summary: photo.title ?? 'Untitled',
+      image: new URL(photo.url),
+    });
   },
 );
 
