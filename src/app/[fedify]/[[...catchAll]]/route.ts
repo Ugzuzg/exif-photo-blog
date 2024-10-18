@@ -16,7 +16,6 @@ import {
   PropertyValue,
   PUBLIC_COLLECTION,
   type Recipient,
-  RequestContext,
   Undo,
   Update,
 } from '@fedify/fedify';
