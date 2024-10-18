@@ -27,6 +27,7 @@ import { Temporal } from '@js-temporal/polyfill';
 import { Photo } from '@/photo';
 
 const sql = postgres(process.env.POSTGRES_URL as string);
+console.log(process.env.POSTGRES_URL, process.env.NEXT_PUBLIC_SITE_DOMAIN);
 
 const kv = new PostgresKvStore(sql);
 
