@@ -25,7 +25,7 @@ import { Temporal } from '@js-temporal/polyfill';
 import { Photo } from '@/photo';
 import { emitter } from '@/shared/events';
 
-const sql = postgres(process.env.POSTGRES_URL);
+const sql = postgres(process.env.POSTGRES_URL as string);
 
 const kv = new PostgresKvStore(sql);
 
