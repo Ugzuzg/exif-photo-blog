@@ -200,8 +200,8 @@ export const updatePhotoAction = async (formData: FormData) =>
       if (url) {
         urlToDelete = photo.url;
         photo.url = url;
-        await photoDeleted(photo.id);
       }
+      await photoDeleted(photo.id);
     }
 
     await updatePhoto(photo).then(async () => {
