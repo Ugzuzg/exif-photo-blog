@@ -21,7 +21,7 @@ import {
   Undo,
   Update,
 } from '@fedify/fedify';
-import { PostgresKvStore, PostgresMessageQueue } from '@fedify/postgres';
+import { PostgresKvStore } from '@fedify/postgres';
 import postgres from 'postgres';
 import { Temporal } from '@js-temporal/polyfill';
 import { Photo } from '@/photo';
@@ -33,7 +33,6 @@ const kv = new PostgresKvStore(sql);
 
 export const federation = createFederation<null>({
   kv,
-  queue: new PostgresMessageQueue(sql),
 });
 
 export function integrateFederation<TContextData>(
