@@ -167,7 +167,7 @@ const createNote = (ctx: Context<null>, photo: Photo) => {
               name: 'Focal Length',
               value: String(photo.focalLength),
             }),
-        ].filter(Boolean),
+        ].filter((v): v is PropertyValue => Boolean(v)),
       }),
     ],
   });
