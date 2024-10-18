@@ -245,7 +245,7 @@ export const photoCreated = async (photoId: string) => {
   console.log('PhotoCreated', photoId, photo);
   if (photo == null || photo.hidden) return;
 
-  ctx.sendActivity(
+  await ctx.sendActivity(
     { identifier: 'me' },
     'followers',
     createActivity(ctx, photo),
@@ -258,7 +258,7 @@ export const photoUpdated = async (photoId: string) => {
   console.log('PhotoUpdated', photoId, photo);
   if (photo == null || photo.hidden) return;
 
-  ctx.sendActivity(
+  await ctx.sendActivity(
     { identifier: 'me' },
     'followers',
     new Update({
@@ -272,7 +272,7 @@ export const photoDeleted = async (photoId: string) => {
   console.log('PhotoDeleted', photoId);
   const ctx = federation.createContext(baseUrl, null);
 
-  ctx.sendActivity(
+  await ctx.sendActivity(
     { identifier: 'me' },
     'followers',
     new Delete({
