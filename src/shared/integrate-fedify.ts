@@ -262,6 +262,7 @@ export const photoUpdated = async (photoId: string) => {
     { identifier: 'me' },
     'followers',
     new Update({
+      id: new URL('#activity', ctx.getObjectUri(Note, { noteId: photoId })),
       actor: ctx.getActorUri('me'),
       object: createNote(ctx, photo),
     }),
@@ -276,7 +277,7 @@ export const photoDeleted = async (photoId: string) => {
     { identifier: 'me' },
     'followers',
     new Delete({
-      id: ctx.getObjectUri(Note, { noteId: photoId }),
+      id: new URL('#activity', ctx.getObjectUri(Note, { noteId: photoId })),
       actor: ctx.getActorUri('me'),
       published: Temporal.Instant.fromEpochMilliseconds(Date.now()),
       to: PUBLIC_COLLECTION,
