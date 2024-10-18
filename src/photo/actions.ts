@@ -49,7 +49,11 @@ import { createStreamableValue } from 'ai/rsc';
 import { convertUploadToPhoto } from './storage';
 import { UrlAddStatus } from '@/admin/AdminUploadsClient';
 import { convertStringToArray } from '@/utility/string';
-import { emitter } from '@/shared/events';
+import {
+  photoCreated,
+  photoUpdated,
+  photoDeleted,
+} from '@/shared/integrate-fedify';
 
 // Private actions
 
@@ -68,7 +72,7 @@ export const createPhotoAction = async (formData: FormData) =>
     if (updatedUrl) {
       photo.url = updatedUrl;
       await insertPhoto(photo);
-      emitter.emit('PhotoCreated', { photoId: photo.id });
+      await photoCreated(photo.id);
       revalidateAllKeysAndPaths();
       redirect(PATH_ADMIN_PHOTOS);
     }
@@ -196,7 +200,7 @@ export const updatePhotoAction = async (formData: FormData) =>
       if (url) {
         urlToDelete = photo.url;
         photo.url = url;
-        emitter.emit('PhotoDeleted', { photoId: photo.id });
+        await photoDeleted(photo.id);
       }
     }
 
@@ -205,7 +209,7 @@ export const updatePhotoAction = async (formData: FormData) =>
         await deleteFile(urlToDelete);
       }
     });
-    emitter.emit('PhotoUpdated', { photoId: photo.id });
+    await photoUpdated(photo.id);
 
     revalidatePhoto(photo.id);
 
@@ -230,7 +234,7 @@ export const toggleFavoritePhotoAction = async (
         ? tags.filter((tag) => !isTagFavs(tag))
         : [...tags, TAG_FAVS];
       await updatePhoto(convertPhotoToPhotoDbInsert(photo));
-      emitter.emit('PhotoUpdated', { photoId: photo.id });
+      await photoUpdated(photo.id);
       revalidateAllKeysAndPaths();
       if (shouldRedirect) {
         redirect(pathForPhoto({ photo: photoId }));
@@ -244,7 +248,7 @@ export const deletePhotosAction = async (photoIds: string[]) =>
       const photo = await getPhoto(photoId, true);
       if (photo) {
         await deletePhoto(photoId).then(() => deleteFile(photo.url));
-        emitter.emit('PhotoDeleted', { photoId });
+        await photoDeleted(photoId);
       }
     }
     revalidateAllKeysAndPaths();
@@ -257,7 +261,7 @@ export const deletePhotoAction = async (
 ) =>
   runAuthenticatedAdminServerAction(async () => {
     await deletePhoto(photoId).then(() => deleteFile(photoUrl));
-    emitter.emit('PhotoDeleted', { photoId });
+    await photoDeleted(photoId);
     revalidateAllKeysAndPaths();
     if (shouldRedirect) {
       redirect(PATH_ROOT);
@@ -373,7 +377,7 @@ export const syncPhotoAction = async (photoId: string) =>
             await deleteFile(urlToDelete);
           }
         });
-        emitter.emit('PhotoUpdated', { photoId: photo.id });
+        await photoUpdated(photo.id);
 
         revalidateAllKeysAndPaths();
       }
