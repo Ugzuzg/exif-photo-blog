@@ -224,7 +224,8 @@ const baseUrl = new URL(`https://${process.env.NEXT_PUBLIC_SITE_DOMAIN}`);
 emitter.on('PhotoCreated', async ({ photoId }) => {
   const ctx = federation.createContext(baseUrl, null);
   const photo = await getPhoto(photoId);
-  if (photo == null) return;
+  console.log('PhotoCreated', photoId, photo);
+  if (photo == null || photo.hidden) return;
 
   ctx.sendActivity(
     { identifier: 'me' },
@@ -236,7 +237,8 @@ emitter.on('PhotoCreated', async ({ photoId }) => {
 emitter.on('PhotoUpdated', async ({ photoId }) => {
   const ctx = federation.createContext(baseUrl, null);
   const photo = await getPhoto(photoId);
-  if (photo == null) return;
+  console.log('PhotoUpdated', photoId, photo);
+  if (photo == null || photo.hidden) return;
 
   ctx.sendActivity(
     { identifier: 'me' },
@@ -249,6 +251,7 @@ emitter.on('PhotoUpdated', async ({ photoId }) => {
 });
 
 emitter.on('PhotoDeleted', async ({ photoId }) => {
+  console.log('PhotoDeleted', photoId);
   const ctx = federation.createContext(baseUrl, null);
 
   ctx.sendActivity(
