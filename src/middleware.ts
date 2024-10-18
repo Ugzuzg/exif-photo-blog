@@ -11,7 +11,7 @@ import {
 } from './site/paths';
 
 export default async function middleware(req: NextRequest, res: NextResponse) {
-  const { pathname, search } = req.nextUrl;
+  const { pathname } = req.nextUrl;
 
   if (pathname === PATH_ADMIN) {
     return NextResponse.redirect(new URL(PATH_ADMIN_PHOTOS, req.url));
@@ -32,16 +32,11 @@ export default async function middleware(req: NextRequest, res: NextResponse) {
   } else if (
     pathname.startsWith('/.well-known') ||
     pathname.startsWith('/users')
-  ) {
-    return NextResponse.rewrite(
-      new URL(`/api/activity-pub${pathname}${search}`, req.url),
+  )
+    return auth(
+      req as unknown as NextApiRequest,
+      res as unknown as NextApiResponse,
     );
-  }
-
-  return auth(
-    req as unknown as NextApiRequest,
-    res as unknown as NextApiResponse,
-  );
 }
 
 export const config = {
@@ -55,7 +50,5 @@ export const config = {
   // eslint-disable-next-line max-len
   matcher: [
     '/((?!api$|api/auth|_next/static|_next/image|favicon.ico$|favicons/|grid$|$).*)',
-    '/.well-known/(.*)',
-    '/users/(.*)',
   ],
 };

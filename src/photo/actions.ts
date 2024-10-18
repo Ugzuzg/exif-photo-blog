@@ -49,6 +49,7 @@ import { createStreamableValue } from 'ai/rsc';
 import { convertUploadToPhoto } from './storage';
 import { UrlAddStatus } from '@/admin/AdminUploadsClient';
 import { convertStringToArray } from '@/utility/string';
+import { emitter } from '@/shared/events';
 
 // Private actions
 
@@ -63,10 +64,11 @@ export const createPhotoAction = async (formData: FormData) =>
       urlOrigin: photo.url,
       shouldStripGpsData,
     });
-    
+
     if (updatedUrl) {
       photo.url = updatedUrl;
       await insertPhoto(photo);
+      emitter.emit('PhotoCreated', { photoId: photo.id });
       revalidateAllKeysAndPaths();
       redirect(PATH_ADMIN_PHOTOS);
     }
@@ -78,10 +80,10 @@ export const addAllUploadsAction = async ({
   takenAtLocal,
   takenAtNaiveLocal,
 }: {
-  uploadUrls: string[]
-  tags?: string
-  takenAtLocal: string
-  takenAtNaiveLocal: string
+  uploadUrls: string[];
+  tags?: string;
+  takenAtLocal: string;
+  takenAtNaiveLocal: string;
 }) =>
   runAuthenticatedAdminServerAction(async () => {
     const PROGRESS_TASK_COUNT = AI_TEXT_GENERATION_ENABLED ? 5 : 4;
@@ -164,10 +166,12 @@ export const addAllUploadsAction = async ({
               streamUpdate(subheadFinal, 'added');
             }
           }
-        };
+        }
       } catch (error: any) {
         // eslint-disable-next-line max-len
-        stream.error(`${error.message} (${addedUploadUrls.length} of ${uploadUrls.length} photos successfully added)`);
+        stream.error(
+          `${error.message} (${addedUploadUrls.length} of ${uploadUrls.length} photos successfully added)`,
+        );
       }
       revalidateAllKeysAndPaths();
       stream.done();
@@ -195,25 +199,20 @@ export const updatePhotoAction = async (formData: FormData) =>
       }
     }
 
-    await updatePhoto(photo)
-      .then(async () => {
-        if (urlToDelete) { await deleteFile(urlToDelete); }
-      });
+    await updatePhoto(photo).then(async () => {
+      if (urlToDelete) {
+        await deleteFile(urlToDelete);
+      }
+    });
 
     revalidatePhoto(photo.id);
 
     redirect(PATH_ADMIN_PHOTOS);
   });
 
-export const tagMultiplePhotosAction = (
-  tags: string,
-  photoIds: string[],
-) =>
+export const tagMultiplePhotosAction = (tags: string, photoIds: string[]) =>
   runAuthenticatedAdminServerAction(async () => {
-    await addTagsToPhotos(
-      convertStringToArray(tags, false) ?? [],
-      photoIds,
-    );
+    await addTagsToPhotos(convertStringToArray(tags, false) ?? [], photoIds);
     revalidateAllKeysAndPaths();
   });
 
@@ -225,8 +224,8 @@ export const toggleFavoritePhotoAction = async (
     const photo = await getPhoto(photoId);
     if (photo) {
       const { tags } = photo;
-      photo.tags = tags.some(tag => tag === TAG_FAVS)
-        ? tags.filter(tag => !isTagFavs(tag))
+      photo.tags = tags.some((tag) => tag === TAG_FAVS)
+        ? tags.filter((tag) => !isTagFavs(tag))
         : [...tags, TAG_FAVS];
       await updatePhoto(convertPhotoToPhotoDbInsert(photo));
       revalidateAllKeysAndPaths();
@@ -349,24 +348,26 @@ export const syncPhotoAction = async (photoId: string) =>
           semanticDescription: aiSemanticDescription,
         } = await generateAiImageQueries(
           imageResizedBase64,
-          AI_TEXT_AUTO_GENERATED_FIELDS
+          AI_TEXT_AUTO_GENERATED_FIELDS,
         );
 
         const photoFormDbInsert = convertFormDataToPhotoDbInsert({
           ...convertPhotoToFormData(photo),
           ...photoFormExif,
-          ...!BLUR_ENABLED && { blurData: undefined },
-          ...!photo.title && { title: atTitle },
-          ...!photo.caption && { caption: aiCaption },
-          ...photo.tags.length === 0 && { tags: aiTags },
-          ...!photo.semanticDescription &&
-            { semanticDescription: aiSemanticDescription },
+          ...(!BLUR_ENABLED && { blurData: undefined }),
+          ...(!photo.title && { title: atTitle }),
+          ...(!photo.caption && { caption: aiCaption }),
+          ...(photo.tags.length === 0 && { tags: aiTags }),
+          ...(!photo.semanticDescription && {
+            semanticDescription: aiSemanticDescription,
+          }),
         });
 
-        await updatePhoto(photoFormDbInsert)
-          .then(async () => {
-            if (urlToDelete) { await deleteFile(urlToDelete); }
-          });
+        await updatePhoto(photoFormDbInsert).then(async () => {
+          if (urlToDelete) {
+            await deleteFile(urlToDelete);
+          }
+        });
 
         revalidateAllKeysAndPaths();
       }
@@ -389,14 +390,16 @@ export const streamAiImageQueryAction = async (
   query: AiImageQuery,
 ) =>
   runAuthenticatedAdminServerAction(() =>
-    streamOpenAiImageQuery(imageBase64, AI_IMAGE_QUERIES[query]));
+    streamOpenAiImageQuery(imageBase64, AI_IMAGE_QUERIES[query]),
+  );
 
 export const getImageBlurAction = async (url: string) =>
   runAuthenticatedAdminServerAction(() => blurImageFromUrl(url));
 
 export const getPhotosHiddenMetaCachedAction = async () =>
   runAuthenticatedAdminServerAction(() =>
-    getPhotosMetaCached({ hidden: 'only' }));
+    getPhotosMetaCached({ hidden: 'only' }),
+  );
 
 // Public/Private actions
 
@@ -413,8 +416,7 @@ export const getPhotosCachedAction = async (options: GetPhotosOptions) =>
 // Public actions
 
 export const searchPhotosAction = async (query: string) =>
-  getPhotos({ query, limit: 10 })
-    .catch(e => {
-      console.error('Could not query photos', e);
-      return [] as Photo[];
-    });
+  getPhotos({ query, limit: 10 }).catch((e) => {
+    console.error('Could not query photos', e);
+    return [] as Photo[];
+  });
