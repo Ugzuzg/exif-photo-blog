@@ -25,6 +25,7 @@ import { PostgresKvStore } from '@fedify/postgres';
 import postgres from 'postgres';
 import { Temporal } from '@js-temporal/polyfill';
 import { Photo } from '@/photo';
+import { NextRequest, NextResponse } from 'next/server';
 
 const sql = postgres(process.env.POSTGRES_URL as string);
 console.log(process.env.POSTGRES_URL, process.env.NEXT_PUBLIC_SITE_DOMAIN);
@@ -35,21 +36,32 @@ export const federation = createFederation<null>({
   kv,
 });
 
+const activityPubHandle = 'me';
+
 export function integrateFederation<TContextData>(
   federation: Federation<TContextData>,
   contextDataFactory: (
     request: Request,
   ) => TContextData | Promise<TContextData>,
 ) {
-  return async (request: Request) => {
-    const forwardedRequest = await getXForwardedRequest(request);
+  return async (nextRequest: NextRequest) => {
+    const forwardedRequest = await getXForwardedRequest(nextRequest);
     const contextData = await contextDataFactory(forwardedRequest);
     return await federation.fetch(forwardedRequest, {
       contextData,
       onNotFound: () => {
         return new Response('Not found', { status: 404 });
       },
-      onNotAcceptable: () => {
+      onNotAcceptable: async (request) => {
+        if (nextRequest.nextUrl.pathname.startsWith('/notes/')) {
+          return NextResponse.redirect(
+            new URL(
+              nextRequest.nextUrl.pathname.replace('/notes/', '/p/'),
+              nextRequest.nextUrl.href,
+            ),
+          );
+        }
+
         return new Response('Not acceptable', {
           status: 406,
           headers: {
@@ -64,7 +76,7 @@ export function integrateFederation<TContextData>(
 
 federation
   .setActorDispatcher('/users/{identifier}', async (ctx, identifier) => {
-    if (identifier !== 'me') return null;
+    if (identifier !== activityPubHandle) return null;
     return new Person({
       id: ctx.getActorUri(identifier),
       name: 'Me',
@@ -82,7 +94,7 @@ federation
     });
   })
   .setKeyPairsDispatcher(async (ctx, identifier) => {
-    if (identifier != 'me') return []; // Other than "me" is not found.
+    if (identifier != activityPubHandle) return [];
     const entry = await kv.get<{
       privateKey: JsonWebKey;
       publicKey: JsonWebKey;
@@ -115,7 +127,8 @@ federation
       return;
     }
     const parsed = ctx.parseUri(follow.objectId);
-    if (parsed?.type !== 'actor' || parsed.identifier !== 'me') return;
+    if (parsed?.type !== 'actor' || parsed.identifier !== activityPubHandle)
+      return;
     const follower = await follow.getActor(ctx);
     if (follower == null) return;
     // Note that if a server receives a `Follow` activity, it should reply
@@ -135,7 +148,8 @@ federation
     if (!(follow instanceof Follow) || follow.id == null) return;
     if (undo.actorId == null || follow.objectId == null) return;
     const parsed = ctx.parseUri(follow.objectId);
-    if (parsed?.type !== 'actor' || parsed?.identifier !== 'me') return;
+    if (parsed?.type !== 'actor' || parsed?.identifier !== activityPubHandle)
+      return;
     await kv.delete(['followers', undo.actorId.href]);
   });
 
@@ -143,16 +157,14 @@ federation
   .setOutboxDispatcher(
     '/users/{identifier}/outbox',
     async (ctx, identifier) => {
-      // Work with the database to find the activities that the actor has sent
-      // (the following `getPostsByUserId` is a hypothetical function):
+      if (identifier !== activityPubHandle) return null;
       const photos = await getPhotos();
-      // Turn the posts into `Create` activities:
       const items = photos.map((photo) => createActivity(ctx, photo));
       return { items, nextCursor: null };
     },
   )
   .setCounter(async (ctx, identifier) => {
-    // The following `countPostsByUserId` is a hypothetical function:
+    if (identifier !== activityPubHandle) return null;
     return (await getPhotosMeta()).count;
   });
 
@@ -162,9 +174,9 @@ const createNote = (ctx: Context<null>, photo: Photo) => {
     url: ctx.getObjectUri(Note, { noteId: photo.id }),
     summary: null,
     content: photo.title ?? 'Untitled',
-    attribution: ctx.getActorUri('me'),
+    attribution: ctx.getActorUri(activityPubHandle),
     to: PUBLIC_COLLECTION,
-    cc: ctx.getFollowersUri('me'),
+    cc: ctx.getFollowersUri(activityPubHandle),
     published: Temporal.Instant.fromEpochMilliseconds(
       photo.createdAt.getTime(),
     ),
@@ -194,7 +206,7 @@ const createNote = (ctx: Context<null>, photo: Photo) => {
 const createActivity = (ctx: Context<null>, photo: Photo) => {
   return new Create({
     id: ctx.getObjectUri(Create, { noteId: photo.id }),
-    actor: ctx.getActorUri('me'),
+    actor: ctx.getActorUri(activityPubHandle),
     published: Temporal.Instant.fromEpochMilliseconds(
       photo.createdAt.getTime(),
     ),
@@ -227,6 +239,8 @@ federation.setObjectDispatcher(
 federation.setFollowersDispatcher(
   '/users/{identifier}/followers',
   async (ctx, identifier) => {
+    if (identifier !== activityPubHandle) return null;
+
     const followers: { key: string[]; value: string }[] =
       await sql`SELECT * FROM fedify_kv where 'followers'=ANY(key)`;
     const items: Recipient[] = followers.map((follower) => ({
@@ -246,7 +260,7 @@ export const photoCreated = async (photoId: string) => {
   if (photo == null || photo.hidden) return;
 
   await ctx.sendActivity(
-    { identifier: 'me' },
+    { identifier: activityPubHandle },
     'followers',
     createActivity(ctx, photo),
   );
@@ -259,11 +273,11 @@ export const photoUpdated = async (photoId: string) => {
   if (photo == null || photo.hidden) return;
 
   await ctx.sendActivity(
-    { identifier: 'me' },
+    { identifier: activityPubHandle },
     'followers',
     new Update({
       id: new URL('#activity', ctx.getObjectUri(Note, { noteId: photoId })),
-      actor: ctx.getActorUri('me'),
+      actor: ctx.getActorUri(activityPubHandle),
       object: createNote(ctx, photo),
     }),
   );
@@ -274,11 +288,11 @@ export const photoDeleted = async (photoId: string) => {
   const ctx = federation.createContext(baseUrl, null);
 
   await ctx.sendActivity(
-    { identifier: 'me' },
+    { identifier: activityPubHandle },
     'followers',
     new Delete({
       id: new URL('#activity', ctx.getObjectUri(Note, { noteId: photoId })),
-      actor: ctx.getActorUri('me'),
+      actor: ctx.getActorUri(activityPubHandle),
       published: Temporal.Instant.fromEpochMilliseconds(Date.now()),
       to: PUBLIC_COLLECTION,
     }),
