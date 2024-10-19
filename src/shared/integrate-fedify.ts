@@ -1,4 +1,4 @@
-import { Federation } from '@fedify/fedify';
+import { Actor, Application, Federation } from '@fedify/fedify';
 import { getXForwardedRequest } from 'x-forwarded-fetch';
 
 import { getPhoto, getPhotos, getPhotosMeta } from '@/photo/db/query';
@@ -28,7 +28,6 @@ import { Photo } from '@/photo';
 import { NextRequest, NextResponse } from 'next/server';
 
 const sql = postgres(process.env.POSTGRES_URL as string);
-console.log(process.env.POSTGRES_URL, process.env.NEXT_PUBLIC_SITE_DOMAIN);
 
 const kv = new PostgresKvStore(sql);
 
@@ -141,7 +140,11 @@ federation
     );
     // Store the follower in the key-value store:
 
-    await kv.set(['followers', follow.actorId.href], follow.actorId.href);
+    await kv.set(['followers', follow.actorId.href], {
+      id: follower.id?.toString(),
+      inboxId: follower.inboxId?.toString(),
+      endpoints: { sharedInbox: follower.endpoints?.sharedInbox?.toString() },
+    });
   })
   .on(Undo, async (ctx, undo) => {
     const follow = await undo.getObject();
@@ -243,10 +246,17 @@ federation.setFollowersDispatcher(
 
     const followers: { key: string[]; value: string }[] =
       await sql`SELECT * FROM fedify_kv where 'followers'=ANY(key)`;
-    const items: Recipient[] = followers.map((follower) => ({
-      id: new URL(JSON.parse(follower.value)),
-      inboxId: null,
-    }));
+    const items: Recipient[] = followers.map((followerRow) => {
+      const follower: { id: string; inboxId: string; endpoints: any } =
+        JSON.parse(followerRow.value);
+      return {
+        id: new URL(follower.id),
+        inboxId: follower.inboxId ? new URL(follower.inboxId) : null,
+        endpoints: follower.endpoints.sharedInbox
+          ? { sharedInbox: new URL(follower.endpoints.sharedInbox) }
+          : null,
+      };
+    });
     return { items };
   },
 );
