@@ -306,6 +306,7 @@ export const photoDeleted = async (photoId: string) => {
       actor: ctx.getActorUri(activityPubHandle),
       published: Temporal.Instant.fromEpochMilliseconds(Date.now()),
       to: PUBLIC_COLLECTION,
+      object: ctx.getObjectUri(Note, { noteId: photoId }),
     }),
   );
 };
