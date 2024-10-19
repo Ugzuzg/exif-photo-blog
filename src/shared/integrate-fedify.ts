@@ -1,5 +1,6 @@
 import { Actor, Application, Federation } from '@fedify/fedify';
 import { getXForwardedRequest } from 'x-forwarded-fetch';
+import { randomUUID } from 'node:crypto';
 
 import { getPhoto, getPhotos, getPhotosMeta } from '@/photo/db/query';
 import {
@@ -208,25 +209,18 @@ const createNote = (ctx: Context<null>, photo: Photo) => {
 
 const createActivity = (ctx: Context<null>, photo: Photo) => {
   return new Create({
-    id: ctx.getObjectUri(Create, { noteId: photo.id }),
+    id: new URL(
+      `#${randomUUID()}`,
+      ctx.getObjectUri(Note, { noteId: photo.id }),
+    ),
     actor: ctx.getActorUri(activityPubHandle),
     published: Temporal.Instant.fromEpochMilliseconds(
       photo.createdAt.getTime(),
     ),
-    to: new URL('https://www.w3.org/ns/activitystreams#Public'),
+    to: PUBLIC_COLLECTION,
     object: createNote(ctx, photo),
   });
 };
-
-federation.setObjectDispatcher(
-  Create,
-  '/notes/{noteId}/activity',
-  async (ctx, { noteId }) => {
-    const photo = await getPhoto(noteId);
-    if (photo == null) return null;
-    return createActivity(ctx, photo);
-  },
-);
 
 federation.setObjectDispatcher(
   Note,
@@ -286,9 +280,13 @@ export const photoUpdated = async (photoId: string) => {
     { identifier: activityPubHandle },
     'followers',
     new Update({
-      id: new URL('#activity', ctx.getObjectUri(Note, { noteId: photoId })),
+      id: new URL(
+        `#${randomUUID()}`,
+        ctx.getObjectUri(Note, { noteId: photoId }),
+      ),
       actor: ctx.getActorUri(activityPubHandle),
       object: createNote(ctx, photo),
+      to: PUBLIC_COLLECTION,
     }),
   );
 };
@@ -301,7 +299,10 @@ export const photoDeleted = async (photoId: string) => {
     { identifier: activityPubHandle },
     'followers',
     new Delete({
-      id: new URL('#activity', ctx.getObjectUri(Note, { noteId: photoId })),
+      id: new URL(
+        `#${randomUUID()}`,
+        ctx.getObjectUri(Note, { noteId: photoId }),
+      ),
       actor: ctx.getActorUri(activityPubHandle),
       published: Temporal.Instant.fromEpochMilliseconds(Date.now()),
       to: PUBLIC_COLLECTION,
