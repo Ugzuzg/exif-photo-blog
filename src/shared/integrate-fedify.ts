@@ -184,12 +184,12 @@ const createNote = (ctx: Context<null>, photo: Photo) => {
     published: Temporal.Instant.fromEpochMilliseconds(
       photo.createdAt.getTime(),
     ),
+    updated: Temporal.Instant.fromEpochMilliseconds(photo.updatedAt.getTime()),
 
     attachments: [
       new Image({
         mediaType: 'image/jpeg',
         url: new URL(photo.url),
-        name: 'asb',
         attachments: [
           photo.iso &&
             new PropertyValue({
@@ -285,8 +285,9 @@ export const photoUpdated = async (photoId: string) => {
         ctx.getObjectUri(Note, { noteId: photoId }),
       ),
       actor: ctx.getActorUri(activityPubHandle),
-      object: createNote(ctx, photo),
+      published: Temporal.Instant.fromEpochMilliseconds(Date.now()),
       to: PUBLIC_COLLECTION,
+      object: createNote(ctx, photo),
     }),
   );
 };
